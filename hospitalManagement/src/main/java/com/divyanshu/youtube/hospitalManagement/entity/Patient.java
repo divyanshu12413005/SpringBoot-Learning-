@@ -32,7 +32,7 @@ public class Patient {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "blood_group", nullable = false) // Added nullable = false
+    @Column(name = "blood_group", nullable = false)
     @Enumerated(EnumType.STRING)
     private BloodGroupType bloodGroup;
 
@@ -40,19 +40,15 @@ public class Patient {
     private LocalDate birthDate;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = true)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at", nullable = true)
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public Patient orElseThrow(Object o) {
-        return null;
-    }
-
     @OneToOne(cascade={CascadeType.ALL}, orphanRemoval = true)
-    @JoinColumn(name="patient_insurance_id")  //owning side of the relationship
+    @JoinColumn(name="patient_insurance_id")
     private  Insurance insurance;
 
 

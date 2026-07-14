@@ -11,6 +11,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.divyanshu.learnspringsecurityjwt.dto.UpdateProfileRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.ChangePasswordRequest;
+import com.divyanshu.learnspringsecurityjwt.dto.ForgotPasswordRequest;
+import com.divyanshu.learnspringsecurityjwt.entity.Otp;
+import com.divyanshu.learnspringsecurityjwt.repository.OtpRepository;
+import com.divyanshu.learnspringsecurityjwt.dto.VerifyOtpRequest;
+import com.divyanshu.learnspringsecurityjwt.dto.ResetPasswordRequest;
 
 import java.time.LocalDateTime;
 
@@ -22,12 +27,23 @@ public class UserService {
 
     private final JwtService jwtService;
 
+    private final OtpRepository otpRepository;
+    private final OtpService otpService;
+    private final EmailService emailService;
+
     public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder, JwtService jwtService) {
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService,
+                       OtpRepository otpRepository,
+                       OtpService otpService,
+                       EmailService emailService) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.otpRepository = otpRepository;
+        this.otpService = otpService;
+        this.emailService = emailService;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -132,6 +148,66 @@ public class UserService {
         userRepository.save(user);
 
         return "Password changed successfully";
+    }
+
+    public String forgotPassword(ForgotPasswordRequest request) {
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String otpCode = otpService.generateOtp();
+
+        Otp otp = otpRepository.findByEmail(user.getEmail())
+                .orElse(new Otp());
+
+        otp.setEmail(user.getEmail());
+        otp.setOtp(otpCode);
+        otp.setExpiryTime(LocalDateTime.now().plusMinutes(5));
+        otp.setVerified(false);
+
+        otpRepository.save(otp);
+
+        emailService.sendOtp(user.getEmail(), otpCode);
+
+        return "OTP sent successfully";
+    }
+
+    public String verifyOtp(VerifyOtpRequest request) {
+
+        Otp otp = otpRepository.findByEmailAndOtp(
+                request.getEmail(),
+                request.getOtp()
+        ).orElseThrow(() -> new RuntimeException("Invalid OTP"));
+
+        if (otp.getExpiryTime().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("OTP Expired");
+        }
+
+        otp.setVerified(true);
+
+        otpRepository.save(otp);
+
+        return "OTP Verified Successfully";
+    }
+    public String resetPassword(ResetPasswordRequest request) {
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Otp otp = otpRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("OTP not found"));
+
+        if (!otp.isVerified()) {
+            throw new RuntimeException("OTP not verified");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+        userRepository.save(user);
+
+        otpRepository.delete(otp);
+
+        return "Password Reset Successfully";
     }
 
 }

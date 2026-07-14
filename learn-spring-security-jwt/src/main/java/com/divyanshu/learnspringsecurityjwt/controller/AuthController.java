@@ -7,6 +7,10 @@ import org.springframework.web.bind.annotation.*;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import com.divyanshu.learnspringsecurityjwt.dto.ForgotPasswordRequest;
+import com.divyanshu.learnspringsecurityjwt.dto.VerifyOtpRequest;
+import com.divyanshu.learnspringsecurityjwt.dto.ResetPasswordRequest;
+
 
 @RestController
 @RequestMapping("/auth")
@@ -48,6 +52,25 @@ public class AuthController {
 
         return userService.refreshToken(request);
 
+    }
+
+    @PostMapping("/forgot-password")
+    public String forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+        return userService.forgotPassword(request);
+    }
+    @PostMapping("/verify-otp")
+    public String verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request) {
+
+        return userService.verifyOtp(request);
+    }
+    @PostMapping("/reset-password")
+    public String resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        return userService.resetPassword(request);
     }
 
 }

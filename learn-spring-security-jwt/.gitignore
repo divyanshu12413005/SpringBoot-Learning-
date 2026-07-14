@@ -35,6 +35,7 @@ build/
 # Local configuration
 .env
 .env.*
+application.properties
 application-local.properties
 
 # IntelliJ

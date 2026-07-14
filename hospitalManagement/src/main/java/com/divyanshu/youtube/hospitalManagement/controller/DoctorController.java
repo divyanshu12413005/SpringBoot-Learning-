@@ -1,9 +1,12 @@
 package com.divyanshu.youtube.hospitalManagement.controller;
 
+
 import com.divyanshu.youtube.hospitalManagement.dto.AppointmentResponseDto;
+import com.divyanshu.youtube.hospitalManagement.entity.User;
 import com.divyanshu.youtube.hospitalManagement.service.AppointmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/doctors") // Changed to /api/doctors to match SecurityConfig
+@RequestMapping("/doctors")
 @RequiredArgsConstructor
 public class DoctorController {
 
@@ -19,9 +22,8 @@ public class DoctorController {
 
     @GetMapping("/appointments")
     public ResponseEntity<List<AppointmentResponseDto>> getAllAppointmentsOfDoctor() {
-        // Hardcoding doctor ID for now, as there is no security context
-        long doctorId = 1L;
-        return ResponseEntity.ok(appointmentService.getAllAppointmentsByDoctorId(doctorId));
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(appointmentService.getAllAppointmentsOfDoctor(user.getId()));
     }
 
 }

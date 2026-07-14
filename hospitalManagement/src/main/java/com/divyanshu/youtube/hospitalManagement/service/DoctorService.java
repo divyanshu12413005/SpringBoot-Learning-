@@ -1,60 +1,54 @@
 package com.divyanshu.youtube.hospitalManagement.service;
 
-import com.divyanshu.youtube.hospitalManagement.mapper.DoctorMapper;
 import com.divyanshu.youtube.hospitalManagement.dto.DoctorResponseDto;
 import com.divyanshu.youtube.hospitalManagement.dto.OnboardDoctorRequestDto;
 import com.divyanshu.youtube.hospitalManagement.entity.Doctor;
+import com.divyanshu.youtube.hospitalManagement.entity.User;
+import com.divyanshu.youtube.hospitalManagement.entity.type.RoleType;
 import com.divyanshu.youtube.hospitalManagement.repository.DoctorRepository;
+import com.divyanshu.youtube.hospitalManagement.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DoctorService {
 
     private final DoctorRepository doctorRepository;
-    private final DoctorMapper doctorMapper = DoctorMapper.INSTANCE;
-
-    @Transactional
-    public Doctor saveDoctor(Doctor doctor) {
-        return doctorRepository.save(doctor);
-    }
-
-    public Optional<Doctor> getDoctorById(Long id) {
-        return doctorRepository.findById(id);
-    }
+    private final ModelMapper modelMapper;
+    private final UserRepository userRepository;
 
     public List<DoctorResponseDto> getAllDoctors() {
-        return doctorRepository.findAll().stream()
-                .map(doctorMapper::toDoctorResponseDto)
+        return doctorRepository.findAll()
+                .stream()
+                .map(doctor -> modelMapper.map(doctor, DoctorResponseDto.class))
                 .collect(Collectors.toList());
     }
 
-    @Transactional
-    public Doctor updateDoctor(Long id, Doctor updatedDoctor) {
-        Doctor existingDoctor = doctorRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Doctor with ID " + id + " not found"));
-        existingDoctor.setName(updatedDoctor.getName());
-        existingDoctor.setSpecialization(updatedDoctor.getSpecialization());
-        existingDoctor.setEmail(updatedDoctor.getEmail());
-        return doctorRepository.save(existingDoctor);
-    }
 
     @Transactional
-    public void deleteDoctor(Long id) {
-        doctorRepository.deleteById(id);
-    }
+    public DoctorResponseDto onBoardNewDoctor(OnboardDoctorRequestDto onBoardDoctorRequestDto) {
+        User user = (User) userRepository.findById(onBoardDoctorRequestDto.getUserId()).orElseThrow();
 
-    @Transactional
-    public DoctorResponseDto onBoardNewDoctor(OnboardDoctorRequestDto onboardDoctorRequestDto) {
-        Doctor doctor = doctorMapper.toDoctor(onboardDoctorRequestDto);
-        Doctor savedDoctor = doctorRepository.save(doctor);
-        return doctorMapper.toDoctorResponseDto(savedDoctor);
+        if(doctorRepository.existsById(onBoardDoctorRequestDto.getUserId())) {
+            throw new IllegalArgumentException("Already a doctor");
+        }
+
+        Doctor doctor = Doctor.builder()
+                .name(onBoardDoctorRequestDto.getName())
+                .specialization(onBoardDoctorRequestDto.getSpecialization())
+                .user(user)
+                .build();
+
+        user.getRoles().add(RoleType.DOCTOR);
+
+        return modelMapper.map(doctorRepository.save(doctor), DoctorResponseDto.class);
     }
 }

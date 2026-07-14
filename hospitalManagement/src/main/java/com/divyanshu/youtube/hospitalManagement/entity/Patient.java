@@ -2,11 +2,8 @@ package com.divyanshu.youtube.hospitalManagement.entity;
 
 import com.divyanshu.youtube.hospitalManagement.entity.type.BloodGroupType;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,42 +14,51 @@ import java.util.List;
 @ToString
 @Getter
 @Setter
-@Table(name="patient")
+@Table(
+        name = "patient",
+        uniqueConstraints = {
+//                @UniqueConstraint(name = "unique_patient_email", columnNames = {"email"}),
+                @UniqueConstraint(name = "unique_patient_name_birthdate", columnNames = {"name", "birthDate"})
+        },
+        indexes = {
+                @Index(name = "idx_patient_birth_date", columnList = "birthDate")
+        }
+)
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 public class Patient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 40)
     private String name;
+
+    //    @ToString.Exclude
+    private LocalDate birthDate;
+
+    @Column(unique = true, nullable = false)
+    private String email;
 
     private String gender;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @OneToOne
+    @MapsId
+    private User user;
 
-    @Column(name = "blood_group", nullable = false)
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
     @Enumerated(EnumType.STRING)
     private BloodGroupType bloodGroup;
 
-    @Column(name = "birth_date")
-    private LocalDate birthDate;
+    @OneToOne(cascade = {CascadeType.ALL}, orphanRemoval = true)
+    @JoinColumn(name = "patient_insurance_id") // owning side
+    private Insurance insurance;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @OneToOne(cascade={CascadeType.ALL}, orphanRemoval = true)
-    @JoinColumn(name="patient_insurance_id")
-    private  Insurance insurance;
-
-
-    @OneToMany(mappedBy = "patient", cascade = {CascadeType.REMOVE}, orphanRemoval = true)
-    @ToString.Exclude
-    private List<Appointment>appointments=new ArrayList<>();
+    @OneToMany(mappedBy = "patient", cascade = {CascadeType.REMOVE}, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<Appointment> appointments = new ArrayList<>();
 }

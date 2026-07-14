@@ -1,5 +1,6 @@
 package com.divyanshu.learnspringsecurityjwt.security;
 
+import com.divyanshu.learnspringsecurityjwt.service.CustomOAuth2UserService;
 import com.divyanshu.learnspringsecurityjwt.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.divyanshu.learnspringsecurityjwt.security.OAuth2SuccessHandler;
 
 @Configuration
 @EnableMethodSecurity
@@ -21,11 +23,18 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService userDetailsService;
 
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          CustomUserDetailsService userDetailsService) {
+                          CustomUserDetailsService userDetailsService,
+                          CustomOAuth2UserService customOAuth2UserService,
+                          OAuth2SuccessHandler oAuth2SuccessHandler) {
 
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userDetailsService = userDetailsService;
+        this.customOAuth2UserService = customOAuth2UserService;
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
     }
 
     @Bean
@@ -49,20 +58,28 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .sessionManagement(session ->
+//                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/auth/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/oauth2/**",
+                                "/login/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
+                .oauth2Login(oauth -> oauth
+                        .userInfoEndpoint(user ->
+                                user.userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2SuccessHandler)
+                )
                 .httpBasic(Customizer.withDefaults());
 
         return http.build();

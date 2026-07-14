@@ -11,6 +11,10 @@ import com.divyanshu.learnspringsecurityjwt.dto.ForgotPasswordRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.VerifyOtpRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.ResetPasswordRequest;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.GetMapping;
+
 
 @RestController
 @RequestMapping("/auth")
@@ -71,6 +75,15 @@ public class AuthController {
             @Valid @RequestBody ResetPasswordRequest request) {
 
         return userService.resetPassword(request);
+    }
+
+    @GetMapping("/google/success")
+    public String googleSuccess(Authentication authentication) {
+
+        OAuth2User user = (OAuth2User) authentication.getPrincipal();
+
+        return "Welcome " + user.getAttribute("name")
+                + "\nEmail : " + user.getAttribute("email");
     }
 
 }

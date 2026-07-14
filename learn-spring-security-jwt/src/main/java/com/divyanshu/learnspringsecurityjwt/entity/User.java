@@ -20,6 +20,10 @@ public class User {
 
     private String password;
 
+    private String provider;
+
+    private String profilePicture;
+
 
     @Field("role")
     private Role role;

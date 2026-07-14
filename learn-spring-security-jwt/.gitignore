@@ -31,3 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local configuration
+.env
+.env.*
+application-local.properties
+
+# IntelliJ
+.idea/
+
+
+
+# Logs
+*.log

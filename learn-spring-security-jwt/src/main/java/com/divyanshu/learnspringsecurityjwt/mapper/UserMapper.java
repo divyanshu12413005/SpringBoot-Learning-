@@ -1,5 +1,6 @@
 package com.divyanshu.learnspringsecurityjwt.mapper;
 
+import com.divyanshu.learnspringsecurityjwt.dto.ProfileResponse;
 import com.divyanshu.learnspringsecurityjwt.dto.RegisterRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.UserResponse;
 import com.divyanshu.learnspringsecurityjwt.entity.User;
@@ -24,6 +25,19 @@ public class UserMapper {
         response.setName(user.getName());
         response.setEmail(user.getEmail());
         response.setRole(user.getRole().name());
+
+        return response;
+    }
+
+    public static ProfileResponse toProfileResponse(User user) {
+
+        ProfileResponse response = new ProfileResponse();
+
+        response.setId(user.getId());
+        response.setName(user.getName());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole().name());
+        response.setCreatedAt(user.getCreatedAt());
 
         return response;
     }

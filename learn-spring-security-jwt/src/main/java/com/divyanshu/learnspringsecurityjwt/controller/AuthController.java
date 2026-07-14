@@ -1,15 +1,12 @@
 package com.divyanshu.learnspringsecurityjwt.controller;
 
-import com.divyanshu.learnspringsecurityjwt.dto.LoginRequest;
-import com.divyanshu.learnspringsecurityjwt.dto.LoginResponse;
-import com.divyanshu.learnspringsecurityjwt.dto.RegisterRequest;
-import com.divyanshu.learnspringsecurityjwt.dto.UserResponse;
+import com.divyanshu.learnspringsecurityjwt.dto.*;
 import com.divyanshu.learnspringsecurityjwt.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth")
@@ -31,6 +28,25 @@ public class AuthController {
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
 
         return userService.login(request);
+
+    }
+
+    @GetMapping("/me")
+    public ProfileResponse me() {
+        return userService.getCurrentUser();
+    }
+
+    @PostMapping("/change-password")
+    public String changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+
+        return userService.changePassword(request);
+    }
+
+    @PostMapping("/refresh")
+    public LoginResponse refreshToken(@RequestBody RefreshRequest request) {
+
+        return userService.refreshToken(request);
 
     }
 

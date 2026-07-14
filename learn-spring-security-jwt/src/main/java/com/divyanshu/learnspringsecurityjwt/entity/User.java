@@ -3,6 +3,7 @@ package com.divyanshu.learnspringsecurityjwt.entity;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 
@@ -19,7 +20,13 @@ public class User {
 
     private String password;
 
-    private String role;
+
+    @Field("role")
+    private Role role;
 
     private LocalDateTime createdAt;
+
+    private String refreshToken;
+
+    private LocalDateTime refreshTokenExpiry;
 }

@@ -1,5 +1,7 @@
 package com.divyanshu.learnspringsecurityjwt.controller;
 
+import com.divyanshu.learnspringsecurityjwt.dto.LoginRequest;
+import com.divyanshu.learnspringsecurityjwt.dto.LoginResponse;
 import com.divyanshu.learnspringsecurityjwt.dto.RegisterRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.UserResponse;
 import com.divyanshu.learnspringsecurityjwt.service.UserService;
@@ -23,6 +25,12 @@ public class AuthController {
     public UserResponse register(@Valid @RequestBody RegisterRequest request){
 
         return userService.register(request);
+
+    }
+    @PostMapping("/login")
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+
+        return userService.login(request);
 
     }
 

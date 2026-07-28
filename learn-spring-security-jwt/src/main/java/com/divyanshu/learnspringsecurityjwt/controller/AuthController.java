@@ -86,4 +86,12 @@ public class AuthController {
                 + "\nEmail : " + user.getAttribute("email");
     }
 
+
+    @PutMapping("/profile")
+    public ProfileResponse updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request) {
+
+        return userService.updateProfile(request);
+    }
+
 }

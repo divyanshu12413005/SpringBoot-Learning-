@@ -5,6 +5,9 @@ import com.divyanshu.learnspringsecurityjwt.entity.Role;
 import com.divyanshu.learnspringsecurityjwt.entity.User;
 import com.divyanshu.learnspringsecurityjwt.mapper.UserMapper;
 import com.divyanshu.learnspringsecurityjwt.repository.UserRepository;
+
+import org.springframework.cache.annotation.CachePut;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,12 +15,13 @@ import org.springframework.stereotype.Service;
 import com.divyanshu.learnspringsecurityjwt.dto.UpdateProfileRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.ChangePasswordRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.ForgotPasswordRequest;
-import com.divyanshu.learnspringsecurityjwt.entity.Otp;
-import com.divyanshu.learnspringsecurityjwt.repository.OtpRepository;
+
+
 import com.divyanshu.learnspringsecurityjwt.dto.VerifyOtpRequest;
 import com.divyanshu.learnspringsecurityjwt.dto.ResetPasswordRequest;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserService {
@@ -27,24 +31,33 @@ public class UserService {
 
     private final JwtService jwtService;
 
-    private final OtpRepository otpRepository;
+
     private final OtpService otpService;
     private final EmailService emailService;
+
+    private final RedisService redisService;
+
+    private final CachedUserService cachedUserService;
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
-                       OtpRepository otpRepository,
                        OtpService otpService,
-                       EmailService emailService) {
+                       EmailService emailService,
+                       RedisService redisService,
+                       CachedUserService cachedUserService) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.otpRepository = otpRepository;
         this.otpService = otpService;
         this.emailService = emailService;
+        this.redisService = redisService;
+        this.cachedUserService = cachedUserService;
     }
+
+
+
 
     public LoginResponse login(LoginRequest request) {
 
@@ -99,6 +112,7 @@ public class UserService {
         return UserMapper.toResponse(savedUser);
     }
 
+
     public ProfileResponse getCurrentUser() {
 
         Authentication authentication =
@@ -106,11 +120,9 @@ public class UserService {
 
         String email = authentication.getName();
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        return UserMapper.toProfileResponse(user);
+        return cachedUserService.getUser(email);
     }
+
 
     public ProfileResponse updateProfile(UpdateProfileRequest request) {
 
@@ -126,7 +138,7 @@ public class UserService {
 
         User updatedUser = userRepository.save(user);
 
-        return UserMapper.toProfileResponse(updatedUser);
+        return cachedUserService.updateCache(updatedUser);
     }
 
     public String changePassword(ChangePasswordRequest request) {
@@ -155,37 +167,55 @@ public class UserService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+
+        String rateLimitKey = "otp-limit:" + user.getEmail();
+
+        Long count = redisService.increment(rateLimitKey);
+
+        if (count == 1) {
+            redisService.setExpiry(rateLimitKey, 10, TimeUnit.MINUTES);
+        }
+
+        if (count > 3) {
+            throw new RuntimeException(
+                    "Too many OTP requests. Please try again after 10 minutes."
+            );
+        }
+
         String otpCode = otpService.generateOtp();
 
-        Otp otp = otpRepository.findByEmail(user.getEmail())
-                .orElse(new Otp());
-
-        otp.setEmail(user.getEmail());
-        otp.setOtp(otpCode);
-        otp.setExpiryTime(LocalDateTime.now().plusMinutes(5));
-        otp.setVerified(false);
-
-        otpRepository.save(otp);
+        redisService.saveWithExpiry(
+                "otp:" + user.getEmail(),
+                otpCode,
+                5
+        );
 
         emailService.sendOtp(user.getEmail(), otpCode);
 
+
         return "OTP sent successfully";
+
     }
 
     public String verifyOtp(VerifyOtpRequest request) {
 
-        Otp otp = otpRepository.findByEmailAndOtp(
-                request.getEmail(),
-                request.getOtp()
-        ).orElseThrow(() -> new RuntimeException("Invalid OTP"));
+        String key = "otp:" + request.getEmail();
 
-        if (otp.getExpiryTime().isBefore(LocalDateTime.now())) {
+        String savedOtp = redisService.get(key);
+
+        if (savedOtp == null) {
             throw new RuntimeException("OTP Expired");
         }
 
-        otp.setVerified(true);
+        if (!savedOtp.equals(request.getOtp())) {
+            throw new RuntimeException("Invalid OTP");
+        }
 
-        otpRepository.save(otp);
+        redisService.saveWithExpiry(
+                "verified:" + request.getEmail(),
+                "true",
+                5
+        );
 
         return "OTP Verified Successfully";
     }
@@ -194,10 +224,9 @@ public class UserService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Otp otp = otpRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("OTP not found"));
+        String verified = redisService.get("verified:" + request.getEmail());
 
-        if (!otp.isVerified()) {
+        if (verified == null || !verified.equals("true")) {
             throw new RuntimeException("OTP not verified");
         }
 
@@ -205,9 +234,13 @@ public class UserService {
 
         userRepository.save(user);
 
-        otpRepository.delete(otp);
+        redisService.delete("otp:" + request.getEmail());
+        redisService.delete("verified:" + request.getEmail());
 
         return "Password Reset Successfully";
     }
+
+
+
 
 }

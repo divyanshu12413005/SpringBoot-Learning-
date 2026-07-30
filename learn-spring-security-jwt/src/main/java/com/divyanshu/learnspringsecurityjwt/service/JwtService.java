@@ -10,6 +10,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+
 @Service
 public class JwtService {
 
@@ -74,5 +75,14 @@ public class JwtService {
                 .expiration(new Date(System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000)))
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    public long getRemainingExpiry(String token) {
+
+        Date expiration = extractAllClaims(token).getExpiration();
+
+        long remainingTime = expiration.getTime() - System.currentTimeMillis();
+
+        return Math.max(remainingTime / 1000, 0);
     }
 }

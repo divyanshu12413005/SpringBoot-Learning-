@@ -2,15 +2,18 @@ package com.divyanshu.learnspringsecurityjwt.security;
 
 import com.divyanshu.learnspringsecurityjwt.service.CustomUserDetailsService;
 import com.divyanshu.learnspringsecurityjwt.service.JwtService;
+import com.divyanshu.learnspringsecurityjwt.service.RedisService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -18,13 +21,21 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger logger =
+            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final RedisService redisService;
 
-    public JwtAuthenticationFilter(JwtService jwtService,
-                                   CustomUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(
+            JwtService jwtService,
+            CustomUserDetailsService userDetailsService,
+            RedisService redisService) {
+
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.redisService = redisService;
     }
 
     @Override
@@ -33,24 +44,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        System.out.println("========== JWT FILTER ==========");
+        logger.debug("JWT Authentication Filter Started");
 
         String authHeader = request.getHeader("Authorization");
-        System.out.println("Authorization Header = " + authHeader);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println("Bearer Token Missing");
+            logger.debug("Bearer token not found");
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = authHeader.substring(7);
-        System.out.println("TOKEN = " + token);
+
+        // Check Blacklisted Token
+        if (redisService.isTokenBlacklisted(token)) {
+
+            logger.warn("Blacklisted token used");
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Token has been revoked");
+
+            return;
+        }
 
         try {
 
             String email = jwtService.extractEmail(token);
-            System.out.println("EMAIL = " + email);
+
+            logger.info("Authenticating user: {}", email);
 
             if (email != null &&
                     SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -58,12 +79,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails =
                         userDetailsService.loadUserByUsername(email);
 
-                System.out.println("USER FOUND = " + userDetails.getUsername());
-
                 boolean valid =
                         jwtService.isTokenValid(token, userDetails.getUsername());
-
-                System.out.println("TOKEN VALID = " + valid);
 
                 if (valid) {
 
@@ -82,16 +99,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext()
                             .setAuthentication(authentication);
 
-                    System.out.println("AUTHENTICATION SUCCESS");
+                    logger.info("Authentication successful for {}", email);
                 }
-
             }
 
         } catch (Exception e) {
 
-            System.out.println("JWT ERROR = " + e.getMessage());
-            e.printStackTrace();
-
+            logger.error("JWT Authentication Failed", e);
         }
 
         filterChain.doFilter(request, response);

@@ -1,6 +1,9 @@
 package com.divyanshu.learnspringsecurityjwt.dto;
 
+import com.divyanshu.learnspringsecurityjwt.entity.Role;
 import lombok.Data;
+
+import java.time.Instant;
 
 @Data
 public class UserResponse {
@@ -11,5 +14,9 @@ public class UserResponse {
 
     private String email;
 
-    private String role;
+    private Role role;
+
+    private Instant createdAt;
+
+    private Instant updatedAt;
 }

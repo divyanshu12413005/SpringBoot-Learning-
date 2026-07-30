@@ -1,6 +1,19 @@
-spring.mail.username=your_email@gmail.com
-spring.mail.password=your_app_password
+spring.application.name=learn-spring-security-jwt
 
-jwt.secret=your_jwt_secret
+# MongoDB
+spring.data.mongodb.uri=YOUR_MONGODB_URI
 
-spring.data.mongodb.uri=your_mongodb_uri
+# Redis
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+
+# JWT
+jwt.secret=YOUR_JWT_SECRET
+
+# Email
+spring.mail.username=YOUR_EMAIL
+spring.mail.password=YOUR_APP_PASSWORD
+
+# Google OAuth
+spring.security.oauth2.client.registration.google.client-id=YOUR_CLIENT_ID
+spring.security.oauth2.client.registration.google.client-secret=YOUR_CLIENT_SECRET

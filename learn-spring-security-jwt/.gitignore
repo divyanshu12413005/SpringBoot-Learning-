@@ -1,10 +1,15 @@
 HELP.md
+
+# ==========================
+# Maven
+# ==========================
 target/
-.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+# ==========================
+# Spring Tool Suite (STS)
+# ==========================
 .apt_generated
 .classpath
 .factorypath
@@ -13,13 +18,17 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
+# ==========================
+# IntelliJ IDEA
+# ==========================
+.idea/
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+# ==========================
+# NetBeans
+# ==========================
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -29,19 +38,29 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
+# ==========================
+# VS Code
+# ==========================
 .vscode/
 
-# Local configuration
+# ==========================
+# Environment & Secrets
+# ==========================
 .env
 .env.*
+
 application.properties
+application-dev.properties
+application-docker.properties
 application-local.properties
 
-# IntelliJ
-.idea/
-
-
-
+# ==========================
 # Logs
+# ==========================
 *.log
+
+# ==========================
+# OS Files
+# ==========================
+.DS_Store
+Thumbs.db

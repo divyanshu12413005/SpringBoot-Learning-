@@ -2,7 +2,10 @@ package com.divyanshu.learnspringsecurityjwt.controller;
 
 import com.divyanshu.learnspringsecurityjwt.dto.*;
 import com.divyanshu.learnspringsecurityjwt.service.UserService;
+import io.github.bucket4j.Bucket;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,29 +17,69 @@ import com.divyanshu.learnspringsecurityjwt.dto.ResetPasswordRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
-
+import com.divyanshu.learnspringsecurityjwt.dto.ApiResponse;
+import com.divyanshu.learnspringsecurityjwt.service.RateLimitService;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
     private final UserService userService;
+    private final RateLimitService rateLimitService;
 
-    public AuthController(UserService userService) {
+    public AuthController(
+            UserService userService,
+            RateLimitService rateLimitService) {
+
         this.userService = userService;
+        this.rateLimitService = rateLimitService;
     }
 
     @PostMapping("/register")
-    public UserResponse register(@Valid @RequestBody RegisterRequest request){
+    public ApiResponse<UserResponse> register(
+            @Valid @RequestBody RegisterRequest request) {
 
-        return userService.register(request);
+        UserResponse response = userService.register(request);
 
+        return new ApiResponse<>(
+                true,
+                "User registered successfully",
+                response
+        );
     }
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
 
-        return userService.login(request);
+        String clientIp = httpRequest.getRemoteAddr();
 
+        Bucket loginBucket =
+                rateLimitService.resolveBucket(clientIp);
+
+        if (!loginBucket.tryConsume(1)) {
+
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(
+                            new ApiResponse<>(
+                                    false,
+                                    "Too many login attempts. Please try again after 1 minute.",
+                                    null
+                            )
+                    );
+        }
+
+        LoginResponse response = userService.login(request);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Login successful",
+                        response
+                )
+        );
     }
 
     @GetMapping("/me")
@@ -45,10 +88,16 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    public String changePassword(
+    public ApiResponse<String> changePassword(
             @Valid @RequestBody ChangePasswordRequest request) {
 
-        return userService.changePassword(request);
+        userService.changePassword(request);
+
+        return new ApiResponse<>(
+                true,
+                "Password changed successfully",
+                null
+        );
     }
 
     @PostMapping("/refresh")
@@ -92,6 +141,26 @@ public class AuthController {
             @Valid @RequestBody UpdateProfileRequest request) {
 
         return userService.updateProfile(request);
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<String> logout(HttpServletRequest request) {
+
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Token is missing");
+        }
+
+        String token = authHeader.substring(7);
+
+        userService.logout(token);
+
+        return new ApiResponse<>(
+                true,
+                "Logged out successfully",
+                null
+        );
     }
 
 }

@@ -7,6 +7,8 @@ import com.divyanshu.learnspringsecurityjwt.service.JwtService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -16,8 +18,13 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+
 @Component
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
+
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(OAuth2SuccessHandler.class);
 
     private final UserRepository userRepository;
     private final JwtService jwtService;
@@ -59,21 +66,20 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             user.setProvider("GOOGLE");
             user.setProfilePicture(picture);
             user.setRole(Role.USER);
-            user.setCreatedAt(LocalDateTime.now());
         }
 
-        userRepository.save(user);
+
         String accessToken = jwtService.generateToken(email);
         String refreshToken = jwtService.generateRefreshToken(email);
 
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        System.out.println("===== GOOGLE LOGIN SUCCESS =====");
-        System.out.println("Name : " + name);
-        System.out.println("Email : " + email);
-        System.out.println("Picture : " + picture);
-        System.out.println("Saved User = " + user.getEmail());
+        logger.info("===== GOOGLE LOGIN SUCCESS =====");
+        logger.info("Name : {}", name);
+        logger.info("Email : {}", email);
+        logger.info("Picture : {}", picture);
+        logger.info("Saved User : {}", user.getEmail());
 
         response.setContentType("application/json");
 

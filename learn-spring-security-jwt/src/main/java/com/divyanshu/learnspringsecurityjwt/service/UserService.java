@@ -22,6 +22,9 @@ import com.divyanshu.learnspringsecurityjwt.dto.ResetPasswordRequest;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class UserService {
 
@@ -37,6 +40,9 @@ public class UserService {
     private final RedisService redisService;
 
     private final CachedUserService cachedUserService;
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(UserService.class);
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -91,12 +97,29 @@ public class UserService {
 
         String newAccessToken = jwtService.generateToken(user.getEmail());
 
-        return new LoginResponse(newAccessToken, user.getRefreshToken());
+// Generate new refresh token
+        String newRefreshToken = jwtService.generateRefreshToken(user.getEmail());
+
+// Save new refresh token
+        user.setRefreshToken(newRefreshToken);
+        user.setRefreshTokenExpiry(LocalDateTime.now().plusDays(7));
+
+        userRepository.save(user);
+
+        return new LoginResponse(
+                newAccessToken,
+                newRefreshToken
+        );
     }
 
     public UserResponse register(RegisterRequest request) {
 
+        logger.info("Register request received for email: {}", request.getEmail());
+
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+
+            logger.warn("Registration failed. Email already exists: {}", request.getEmail());
+
             throw new EmailAlreadyExistsException("Email already exists");
         }
 
@@ -104,9 +127,10 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.USER);
-        user.setCreatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
+
+        logger.info("User registered successfully with id: {}", savedUser.getId());
 
         return UserMapper.toResponse(savedUser);
     }
@@ -239,6 +263,15 @@ public class UserService {
         redisService.delete("verified:" + request.getEmail());
 
         return "Password Reset Successfully";
+    }
+
+    public void logout(String token) {
+
+        long expiry = jwtService.getRemainingExpiry(token);
+
+        redisService.blacklistToken(token, expiry);
+
+        logger.info("User logged out successfully");
     }
 
 

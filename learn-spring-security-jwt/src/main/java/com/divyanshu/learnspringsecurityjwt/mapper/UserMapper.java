@@ -24,7 +24,9 @@ public class UserMapper {
         response.setId(user.getId());
         response.setName(user.getName());
         response.setEmail(user.getEmail());
-        response.setRole(user.getRole().name());
+        response.setRole(user.getRole());
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
 
         return response;
     }
@@ -37,7 +39,6 @@ public class UserMapper {
         response.setName(user.getName());
         response.setEmail(user.getEmail());
         response.setRole(user.getRole().name());
-        response.setCreatedAt(user.getCreatedAt());
 
         return response;
     }

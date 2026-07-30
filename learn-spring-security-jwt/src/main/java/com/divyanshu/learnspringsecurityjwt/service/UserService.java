@@ -3,10 +3,9 @@ package com.divyanshu.learnspringsecurityjwt.service;
 import com.divyanshu.learnspringsecurityjwt.dto.*;
 import com.divyanshu.learnspringsecurityjwt.entity.Role;
 import com.divyanshu.learnspringsecurityjwt.entity.User;
+import com.divyanshu.learnspringsecurityjwt.exception.*;
 import com.divyanshu.learnspringsecurityjwt.mapper.UserMapper;
 import com.divyanshu.learnspringsecurityjwt.repository.UserRepository;
-
-import org.springframework.cache.annotation.CachePut;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -62,10 +61,10 @@ public class UserService {
     public LoginResponse login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid Email"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid Password");
+            throw new InvalidPasswordException("Invalid Password");
         }
 
         String accessToken = jwtService.generateToken(user.getEmail());
@@ -98,7 +97,7 @@ public class UserService {
     public UserResponse register(RegisterRequest request) {
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already exists");
+            throw new EmailAlreadyExistsException("Email already exists");
         }
 
         User user = UserMapper.toEntity(request);
@@ -132,7 +131,7 @@ public class UserService {
         String email = authentication.getName();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         user.setName(request.getName());
 
@@ -149,7 +148,7 @@ public class UserService {
         String email = authentication.getName();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new RuntimeException("Old password is incorrect");
@@ -165,7 +164,7 @@ public class UserService {
     public String forgotPassword(ForgotPasswordRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
 
         String rateLimitKey = "otp-limit:" + user.getEmail();
@@ -177,7 +176,7 @@ public class UserService {
         }
 
         if (count > 3) {
-            throw new RuntimeException(
+            throw new OtpRequestLimitExceededException(
                     "Too many OTP requests. Please try again after 10 minutes."
             );
         }
@@ -204,12 +203,14 @@ public class UserService {
         String savedOtp = redisService.get(key);
 
         if (savedOtp == null) {
-            throw new RuntimeException("OTP Expired");
+            throw new OtpExpiredException("OTP Expired");
         }
 
         if (!savedOtp.equals(request.getOtp())) {
-            throw new RuntimeException("Invalid OTP");
+            throw new InvalidOtpException("Invalid OTP");
         }
+
+        redisService.delete(key);
 
         redisService.saveWithExpiry(
                 "verified:" + request.getEmail(),
@@ -222,12 +223,12 @@ public class UserService {
     public String resetPassword(ResetPasswordRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         String verified = redisService.get("verified:" + request.getEmail());
 
         if (verified == null || !verified.equals("true")) {
-            throw new RuntimeException("OTP not verified");
+            throw new OtpNotVerifiedException("OTP not verified");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
